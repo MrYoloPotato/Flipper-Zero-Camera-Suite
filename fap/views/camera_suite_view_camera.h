@@ -104,3 +104,4 @@ void camera_suite_view_camera_set_callback(
     CameraSuiteViewCamera* camera_suite_view_camera,
     CameraSuiteViewCameraCallback callback,
     void* context);
+void create_animation_files(uint8_t images);

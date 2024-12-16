@@ -17,7 +17,7 @@ static void draw_pixel_by_orientation(Canvas* canvas, uint8_t x, uint8_t y, uint
     switch(orientation) {
     default:
     case 0: { // Camera rotated 0 degrees (right side up, default)
-        canvas_draw_dot(canvas, x, y);
+        canvas_draw_dot(canvas, 127 - x, y);
         break;
     }
     case 1: { // Camera rotated 90 degrees
@@ -228,6 +228,105 @@ static void save_image_to_flipper_sd_card(void* model) {
     storage_file_free(file);
 }
 
+#define ASSET_PACK_FOLDER_NAME EXT_PATH("asset_packs/Camera")
+#define ANIM_FOLDER_NAME       ASSET_PACK_FOLDER_NAME "/Anims"
+#define ESPCAM_FOLDER_NAME     ANIM_FOLDER_NAME "/ESPCAM"
+#define DEFAULT_IMAGE \
+    EXT_PATH("asset_packs/Momentum/Anims/Kuronons_CFW_Momentum1_128x64/frame_0.bm")
+
+void create_animation_files(uint8_t images) {
+    Storage* storage = furi_record_open(RECORD_STORAGE);
+    if(!storage_common_exists(storage, ESPCAM_FOLDER_NAME)) {
+        storage_simply_mkdir(storage, ASSET_PACK_FOLDER_NAME);
+        storage_simply_mkdir(storage, ANIM_FOLDER_NAME);
+        storage_simply_mkdir(storage, ESPCAM_FOLDER_NAME);
+    }
+
+    // Create manafest.txt file
+    File* file = storage_file_alloc(storage);
+    bool result =
+        storage_file_open(file, ANIM_FOLDER_NAME "/manifest.txt", FSAM_WRITE, FSOM_OPEN_ALWAYS);
+    if(result) {
+        const char* meta_data =
+            "Filetype: Flipper Animation Manifest\nVersion: 1\n\nName: ESPCAM\nMin butthurt: 0\nMax butthurt: 18\nMin level: 1\nMax level: 30\nWeight: 3\n";
+        storage_file_write(file, meta_data, strlen(meta_data));
+        storage_file_close(file);
+    }
+
+    // Create meta.txt file
+    file = storage_file_alloc(storage);
+    result = storage_file_open(file, ESPCAM_FOLDER_NAME "/meta.txt", FSAM_WRITE, FSOM_OPEN_ALWAYS);
+    if(result) {
+        char data[5];
+        FuriString* file_name = furi_string_alloc();
+        const char* meta_data[] = {
+            "Filetype: Flipper Animation\nVersion: 1\n\nWidth: 128\nHeight: 64\nPassive frames: ",
+            "\nActive frames: 0\nFrames order: ",
+            "\nActive cycles: 0\nFrame rate: 2\nDuration: 360\nActive cooldown: 0\n\nBubble slots: 0\n"};
+        storage_file_seek(file, 0, true);
+        storage_file_truncate(file);
+        storage_file_write(file, meta_data[0], strlen(meta_data[0]));
+        snprintf(data, sizeof(data), "%d", images);
+        storage_file_write(file, data, strlen(data));
+        storage_file_write(file, meta_data[1], strlen(meta_data[1]));
+        for(int i = 0; i < images; i++) {
+            snprintf(data, sizeof(data), "%d ", i);
+            storage_file_write(file, data, strlen(data));
+            furi_string_printf(file_name, ESPCAM_FOLDER_NAME "/frame_%d.bm", i);
+            storage_common_copy(storage, DEFAULT_IMAGE, furi_string_get_cstr(file_name));
+        }
+        for(int i = images; i < 64; i++) {
+            furi_string_printf(file_name, ESPCAM_FOLDER_NAME "/frame_%d.bm", i);
+            storage_common_remove(storage, furi_string_get_cstr(file_name));
+        }
+        storage_file_write(file, meta_data[2], strlen(meta_data[2]));
+        storage_file_close(file);
+        furi_string_free(file_name);
+    }
+
+    furi_record_close(RECORD_STORAGE);
+}
+
+void save_image_to_uncompressed_bm(void* model, uint8_t image_count) {
+    furi_assert(model);
+    static int frame_counter = 0;
+    UartDumpModel* uartDumpModel = model;
+
+    Storage* storage = furi_record_open(RECORD_STORAGE);
+    if(!storage_common_exists(storage, ESPCAM_FOLDER_NAME)) {
+        create_animation_files(image_count);
+    }
+
+    File* file = storage_file_alloc(storage);
+    FuriString* file_name = furi_string_alloc();
+    furi_string_printf(file_name, ESPCAM_FOLDER_NAME "/frame_%d.bm", frame_counter++);
+    if(frame_counter == image_count) {
+        frame_counter = 0;
+    }
+    bool result =
+        storage_file_open(file, furi_string_get_cstr(file_name), FSAM_WRITE, FSOM_OPEN_ALWAYS);
+    furi_string_free(file_name);
+
+    if(result) {
+        uint8_t is_compressed[1] = {0}; // Data is not compressed using compress_encode.
+        storage_file_write(file, is_compressed, COUNT_OF(is_compressed));
+        int8_t row_buffer[ROW_BUFFER_LENGTH];
+        for(size_t i = 0; i < 64; i++) {
+            size_t offset = i * ROW_BUFFER_LENGTH;
+            for(size_t j = 0; j < ROW_BUFFER_LENGTH; j++) {
+                uint8_t data = uartDumpModel->pixels[offset + j];
+                row_buffer[ROW_BUFFER_LENGTH - j - 1] = (uartDumpModel->is_inverted) ? ~data :
+                                                                                       data;
+            }
+            storage_file_write(file, row_buffer, ROW_BUFFER_LENGTH);
+        }
+    }
+
+    storage_file_close(file);
+    storage_file_free(file);
+    furi_record_close(RECORD_STORAGE);
+}
+
 static void
     camera_suite_view_camera_model_init(UartDumpModel* const model, CameraSuite* instance_context) {
     furi_assert(model);
@@ -388,6 +487,12 @@ static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
                 instance->view,
                 UartDumpModel * model,
                 {
+                    CameraSuite* camera_suite = instance->context;
+                    camera_suite_led_set_rgb(camera_suite, 127, 0, 255);
+                    save_image_to_uncompressed_bm(model, camera_suite->frames);
+
+                    UNUSED(save_image_to_flipper_sd_card);
+                    /*
                     // Play sound.
                     camera_suite_play_long_bump(instance->context);
                     camera_suite_play_input_sound(instance->context);
@@ -398,6 +503,7 @@ static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
 
                     // Save currently displayed image to the Flipper Zero SD card.
                     save_image_to_flipper_sd_card(model);
+                    */
 
                     instance->callback(CameraSuiteCustomEventSceneCameraOk, instance->context);
                 },

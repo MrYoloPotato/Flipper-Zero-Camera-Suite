@@ -39,6 +39,7 @@ typedef struct {
     uint32_t jpeg;
     uint32_t speaker;
     uint32_t led;
+    uint32_t frames;
     ButtonMenu* button_menu;
 } CameraSuite;
 

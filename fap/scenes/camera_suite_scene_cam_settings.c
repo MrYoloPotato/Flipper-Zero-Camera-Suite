@@ -39,6 +39,26 @@ const uint32_t flash_value[2] = {
     CameraSuiteFlashOn,
 };
 
+const char* const frames_text[] = {
+    "2",
+    "4",
+    "6",
+    "8",
+    "10",
+    "16",
+    "20",
+};
+
+const uint32_t frames_value[] = {
+    2,
+    4,
+    6,
+    8,
+    10,
+    16,
+    20,
+};
+
 const char* const jpeg_text[2] = {
     "OFF",
     "ON",
@@ -71,6 +91,15 @@ static void camera_suite_scene_cam_settings_set_flash(VariableItem* item) {
 
     variable_item_set_current_value_text(item, flash_text[index]);
     app->flash = flash_value[index];
+}
+
+static void camera_suite_scene_cam_settings_set_frames(VariableItem* item) {
+    CameraSuite* app = variable_item_get_context(item);
+    uint8_t index = variable_item_get_current_value_index(item);
+
+    variable_item_set_current_value_text(item, frames_text[index]);
+    app->frames = frames_value[index];
+    create_animation_files(app->frames);
 }
 
 static void camera_suite_scene_cam_settings_set_jpeg(VariableItem* item) {
@@ -119,6 +148,16 @@ void camera_suite_scene_cam_settings_on_enter(void* context) {
     value_index = value_index_uint32(app->flash, flash_value, 2);
     variable_item_set_current_value_index(item, value_index);
     variable_item_set_current_value_text(item, flash_text[value_index]);
+
+    item = variable_item_list_add(
+        app->variable_item_list,
+        "Frames:",
+        COUNT_OF(frames_text),
+        camera_suite_scene_cam_settings_set_frames,
+        app);
+    value_index = value_index_uint32(app->frames, frames_value, COUNT_OF(frames_value));
+    variable_item_set_current_value_index(item, value_index);
+    variable_item_set_current_value_text(item, frames_text[value_index]);
 
     // @todo - Save picture to ESP32-CAM sd-card instead of Flipper Zero
     // sd-card. This hides the setting for it, for now.
