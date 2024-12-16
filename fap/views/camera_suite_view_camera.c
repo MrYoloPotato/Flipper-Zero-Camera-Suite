@@ -235,6 +235,10 @@ static void save_image_to_flipper_sd_card(void* model) {
     EXT_PATH("asset_packs/Momentum/Anims/Kuronons_CFW_Momentum1_128x64/frame_0.bm")
 
 void create_animation_files(uint8_t images) {
+    if(images == 0) {
+        return;
+    }
+
     Storage* storage = furi_record_open(RECORD_STORAGE);
     if(!storage_common_exists(storage, ESPCAM_FOLDER_NAME)) {
         storage_simply_mkdir(storage, ASSET_PACK_FOLDER_NAME);
@@ -488,22 +492,21 @@ static bool camera_suite_view_camera_input(InputEvent* event, void* context) {
                 UartDumpModel * model,
                 {
                     CameraSuite* camera_suite = instance->context;
-                    camera_suite_led_set_rgb(camera_suite, 127, 0, 255);
-                    save_image_to_uncompressed_bm(model, camera_suite->frames);
+                    if(camera_suite->frames == 0) {
+                        // Play sound.
+                        camera_suite_play_long_bump(instance->context);
+                        camera_suite_play_input_sound(instance->context);
+                        camera_suite_led_set_rgb(instance->context, 0, 0, 255);
 
-                    UNUSED(save_image_to_flipper_sd_card);
-                    /*
-                    // Play sound.
-                    camera_suite_play_long_bump(instance->context);
-                    camera_suite_play_input_sound(instance->context);
-                    camera_suite_led_set_rgb(instance->context, 0, 0, 255);
+                        // @todo - Save picture directly to ESP32-CAM.
+                        // furi_hal_serial_tx(instance->serial_handle, (uint8_t[]){'P'}, 1);
 
-                    // @todo - Save picture directly to ESP32-CAM.
-                    // furi_hal_serial_tx(instance->serial_handle, (uint8_t[]){'P'}, 1);
-
-                    // Save currently displayed image to the Flipper Zero SD card.
-                    save_image_to_flipper_sd_card(model);
-                    */
+                        // Save currently displayed image to the Flipper Zero SD card.
+                        save_image_to_flipper_sd_card(model);
+                    } else {
+                        camera_suite_led_set_rgb(camera_suite, 255, 0, 255);
+                        save_image_to_uncompressed_bm(model, camera_suite->frames);
+                    }
 
                     instance->callback(CameraSuiteCustomEventSceneCameraOk, instance->context);
                 },

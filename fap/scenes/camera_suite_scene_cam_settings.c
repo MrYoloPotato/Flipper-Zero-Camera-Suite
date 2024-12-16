@@ -40,6 +40,7 @@ const uint32_t flash_value[2] = {
 };
 
 const char* const frames_text[] = {
+    "Disabled",
     "2",
     "4",
     "6",
@@ -50,6 +51,7 @@ const char* const frames_text[] = {
 };
 
 const uint32_t frames_value[] = {
+    0,
     2,
     4,
     6,

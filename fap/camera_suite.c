@@ -47,8 +47,7 @@ CameraSuite* camera_suite_app_alloc() {
     app->jpeg = 0; // Save JPEG to ESP32-CAM sd-card is disabled by default.
     app->speaker = 1; // Speaker is enabled by default
     app->led = 1; // LED is enabled by default
-    app->frames = 4; // Frames is set to 4 by default.
-    create_animation_files(app->frames); // Create animation files (ERASES EXISTING IMAGES)!
+    app->frames = 0; // Frames is set to 4 by default.
 
     // Set cam default settings values.
     app->orientation = 0; // Orientation is "portrait", zero degrees by default.
