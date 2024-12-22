@@ -303,10 +303,10 @@ void save_image_to_uncompressed_bm(void* model, uint8_t image_count) {
 
     File* file = storage_file_alloc(storage);
     FuriString* file_name = furi_string_alloc();
-    furi_string_printf(file_name, ESPCAM_FOLDER_NAME "/frame_%d.bm", frame_counter++);
-    if(frame_counter == image_count) {
+    if(++frame_counter >= image_count) {
         frame_counter = 0;
     }
+    furi_string_printf(file_name, ESPCAM_FOLDER_NAME "/frame_%d.bm", frame_counter);
     bool result =
         storage_file_open(file, furi_string_get_cstr(file_name), FSAM_WRITE, FSOM_OPEN_ALWAYS);
     furi_string_free(file_name);
