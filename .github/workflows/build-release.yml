@@ -3,10 +3,6 @@ on:
   push:
     branches:
       - main
-  schedule:
-    # Run every day at 00:00 UTC (midnight) to build the latest release
-    # for new and upcoming firmware.
-    - cron: "0 0 * * *"
 jobs:
   ufbt-build-action:
     runs-on: ubuntu-latest
